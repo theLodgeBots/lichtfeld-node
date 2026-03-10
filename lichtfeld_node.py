@@ -507,9 +507,13 @@ class LichtFeldNode:
             "--SiftExtraction.max_num_features", "16384",
             "--SiftExtraction.estimate_affine_shape", "1",
             "--SiftExtraction.domain_size_pooling", "1",
-        ], capture_output=True, text=True, timeout=600)
+        ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=600)
+        self._log(f"  COLMAP feature_extractor exit code: {r.returncode}")
         if r.returncode != 0:
-            raise RuntimeError(f"Feature extraction failed: {r.stderr[-300:]}")
+            raise RuntimeError(f"Feature extraction failed (exit {r.returncode}): {r.stdout[-500:]}")
+        # Log last few lines of output
+        for line in r.stdout.strip().split("\n")[-3:]:
+            self._log(f"  {line.strip()}")
 
         # Matching (GPU)
         self._update(ticket_id, "COLMAP: matching", 16)
@@ -518,9 +522,10 @@ class LichtFeldNode:
             "--database_path", str(db_path),
             "--FeatureMatching.use_gpu", "1",
             "--FeatureMatching.guided_matching", "1",
-        ], capture_output=True, text=True, timeout=1800)
+        ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=1800)
+        self._log(f"  COLMAP exhaustive_matcher exit code: {r.returncode}")
         if r.returncode != 0:
-            raise RuntimeError(f"Matching failed: {r.stderr[-300:]}")
+            raise RuntimeError(f"Matching failed (exit {r.returncode}): {r.stdout[-500:]}")
 
         # Mapper
         self._update(ticket_id, "COLMAP: mapping", 22)
@@ -533,9 +538,10 @@ class LichtFeldNode:
             "--output_path", str(mapper_out),
             "--Mapper.ba_global_max_num_iterations", "100",
             "--Mapper.ba_global_max_refinements", "5",
-        ], capture_output=True, text=True, timeout=1800)
+        ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=1800)
+        self._log(f"  COLMAP mapper exit code: {r.returncode}")
         if r.returncode != 0:
-            raise RuntimeError(f"Mapper failed: {r.stderr[-300:]}")
+            raise RuntimeError(f"Mapper failed (exit {r.returncode}): {r.stdout[-500:]}")
 
         # Pick best model
         model_0 = sparse_dir / "0"
@@ -564,7 +570,7 @@ class LichtFeldNode:
             "--input_path", str(model_0),
             "--output_path", str(undist),
             "--output_type", "COLMAP",
-        ], capture_output=True, text=True, timeout=600)
+        ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=600)
         if r.returncode == 0 and (undist / "images").exists():
             shutil.rmtree(str(images_dir))
             (undist / "images").rename(images_dir)
