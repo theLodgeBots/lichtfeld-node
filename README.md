@@ -28,7 +28,7 @@ Copy `service-account.json` from the MobileScannerPhotogrammetry project into th
 ### 4. Run
 
 ```bash
-python lichtfeld_node.py --lfs "C:\LichtFeld-Studio\bin\LichtFeld-Studio.exe"
+python lichtfeld_node.py --lfs "C:\tools\LichtFeld-Studio\bin\LichtFeld-Studio.exe"
 ```
 
 The LichtFeld Studio viewer window will open during training so you can watch gaussians form in real time.
