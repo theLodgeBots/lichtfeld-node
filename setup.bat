@@ -10,6 +10,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM Check nvidia-smi
+nvidia-smi >nul 2>&1
+if errorlevel 1 (
+    echo ERROR: nvidia-smi not found. Install NVIDIA driver 570+.
+    pause
+    exit /b 1
+)
+
 REM Check COLMAP
 colmap -h >nul 2>&1
 if errorlevel 1 (
@@ -19,15 +27,16 @@ if errorlevel 1 (
     echo.
 )
 
-REM Check nvidia-smi
-nvidia-smi >nul 2>&1
-if errorlevel 1 (
-    echo ERROR: nvidia-smi not found. Install NVIDIA driver 570+.
-    pause
-    exit /b 1
+REM Create venv
+if not exist ".venv" (
+    echo Creating Python virtual environment...
+    python -m venv .venv
 )
 
-REM Install deps
+REM Activate venv and install deps
+echo Activating virtual environment...
+call .venv\Scripts\activate.bat
+
 echo Installing Python dependencies...
 pip install -r requirements.txt
 
@@ -37,6 +46,6 @@ echo.
 echo Next steps:
 echo 1. Place service-account.json in this directory
 echo 2. Download LichtFeld Studio from https://github.com/MrNeRF/LichtFeld-Studio/releases
-echo 3. Run: python lichtfeld_node.py --lfs "C:\path\to\LichtFeld-Studio.exe"
+echo 3. Run: run.bat
 echo.
 pause

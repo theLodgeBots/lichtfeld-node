@@ -1,6 +1,7 @@
 data/
 *.pyc
 __pycache__/
+.venv/
 service-account.json
 .env
 *.ply

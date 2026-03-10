@@ -10,24 +10,28 @@ Runs natively on Windows with real-time training visualization. Polls Firestore 
 
 - **NVIDIA Driver** 570+ ([download](https://www.nvidia.com/Download/index.aspx))
 - **COLMAP** with GPU support ([download](https://github.com/colmap/colmap/releases))
-- **LichtFeld Studio** ([download binary](https://github.com/MrNeRF/LichtFeld-Studio/releases))
+- **LichtFeld Studio** ([download binary](https://github.com/MrNeRF/LichtFeld-Studio/releases)) — unzip to `C:\tools\LichtFeld-Studio\`
 - **Python 3.10+** ([download](https://www.python.org/downloads/))
 
 Make sure `colmap` is on your PATH, or pass `--colmap "C:\path\to\colmap.exe"`.
 
-### 2. Install Python Dependencies
+### 2. Clone & Setup
 
 ```bash
-pip install -r requirements.txt
+git clone https://github.com/theLodgeBots/lichtfeld-node.git
+cd lichtfeld-node
 ```
-
-### 3. Add Firebase Credentials
 
 Copy `service-account.json` from the MobileScannerPhotogrammetry project into this directory.
 
-### 4. Run
+Double-click **`setup.bat`** — this creates a Python virtual environment and installs all dependencies.
+
+### 3. Run
+
+Double-click **`run.bat`** or:
 
 ```bash
+.venv\Scripts\activate
 python lichtfeld_node.py --lfs "C:\tools\LichtFeld-Studio\bin\LichtFeld-Studio.exe"
 ```
 
@@ -58,6 +62,11 @@ Dashboard at http://localhost:8788
 --strategy mcmc     Training strategy: mcmc (default) or default (ADC)
 --colmap colmap     Path to COLMAP executable
 --headless          Disable LichtFeld viewer (run without GUI)
+```
+
+You can pass extra args through `run.bat`, e.g.:
+```
+run.bat --max-steps 50000 --headless
 ```
 
 ## LichtFeld Studio Features Used
