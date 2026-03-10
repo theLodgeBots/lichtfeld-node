@@ -324,7 +324,10 @@ class LichtFeldNode:
         ticket_doc = self.db.collection("tickets").document(ticket_id).get()
         ticket_data = ticket_doc.to_dict() if ticket_doc.exists else {}
         strategy = ticket_data.get("splat_strategy", self.default_strategy)
-        if strategy not in ("default", "mcmc"):
+        # LichtFeld uses "adc" instead of "default"
+        if strategy == "default":
+            strategy = "adc"
+        if strategy not in ("adc", "mcmc"):
             strategy = self.default_strategy
 
         self.current_job = {"ticket_id": ticket_id, "stage": "Starting", "progress": 0, "strategy": strategy}
@@ -1046,8 +1049,8 @@ if __name__ == "__main__":
     p.add_argument("--data-dir", default=None, help="Working directory (default: ./data)")
     p.add_argument("--max-steps", type=int, default=30000)
     p.add_argument("--downsample", type=int, default=1)
-    p.add_argument("--strategy", choices=["default", "mcmc"], default="mcmc",
-                   help="Training strategy (default: mcmc)")
+    p.add_argument("--strategy", choices=["mcmc", "adc"], default="mcmc",
+                   help="Training strategy: mcmc (default) or adc")
     p.add_argument("--colmap", default="colmap", help="Path to COLMAP executable")
     p.add_argument("--headless", action="store_true",
                    help="Run LichtFeld without viewer (headless mode)")
