@@ -398,6 +398,15 @@ class LichtFeldNode:
             self.recent_jobs.insert(0, {"ticket_id": ticket_id, "success": False, "duration": elapsed})
             raise
         finally:
+            # Terminate LichtFeld viewer if still running
+            if hasattr(self, '_lfs_proc') and self._lfs_proc and self._lfs_proc.poll() is None:
+                self._log("  Closing LichtFeld viewer...")
+                self._lfs_proc.terminate()
+                try:
+                    self._lfs_proc.wait(timeout=10)
+                except Exception:
+                    self._lfs_proc.kill()
+                self._lfs_proc = None
             # Cleanup
             if work.exists():
                 shutil.rmtree(str(work), ignore_errors=True)
@@ -627,9 +636,11 @@ class LichtFeldNode:
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, bufsize=1,
         )
+        self._lfs_proc = proc  # Store ref so cleanup can terminate viewer
 
         import re
         last_pct = 30
+        training_done = False
         for line in proc.stdout:
             line = line.strip()
             if not line:
@@ -647,6 +658,9 @@ class LichtFeldNode:
                     self._update(ticket_id, f"Training ({pct_raw}%)", pct)
                 if step > 0 and step % 5000 == 0:
                     self._log(f"  Step {step}/{total}")
+                # Detect final iteration
+                if step >= total - 1:
+                    training_done = True
 
             # Also try percentage pattern
             m2 = re.search(r'(\d+)%', line)
@@ -657,23 +671,53 @@ class LichtFeldNode:
                     last_pct = pct
                     self._update(ticket_id, f"Training ({pct_raw}%)", pct)
 
+            # Detect training completion from output
+            line_lower = line.lower()
+            if any(k in line_lower for k in ["training complete", "training finished",
+                                              "saving final", "saved ply", "writing ply",
+                                              "saved checkpoint"]):
+                training_done = True
+
             # Log key lines
-            if any(k in line.lower() for k in ["scene scale", "number of", "gaussians",
-                                                  "psnr", "error", "traceback", "saved",
-                                                  "loss", "training complete", "writing"]):
+            if any(k in line_lower for k in ["scene scale", "number of", "gaussians",
+                                              "psnr", "error", "traceback", "saved",
+                                              "loss", "training complete", "writing"]):
                 self._log(f"  {line[:200]}")
 
-        proc.wait(timeout=7200)
-        elapsed = round(time.time() - t0)
-        self._log(f"  LichtFeld training: {elapsed}s (exit {proc.returncode})")
+            # Once training is done, stop reading stdout and let viewer stay open
+            if training_done:
+                self._log("  Training complete — detaching from viewer")
+                break
 
-        if proc.returncode != 0:
+        elapsed = round(time.time() - t0)
+        self._log(f"  LichtFeld training: {elapsed}s")
+
+        # Wait briefly for PLY to be flushed to disk
+        time.sleep(3)
+
+        # Don't wait for process to exit — viewer stays open for inspection
+        # It will be killed when we clean up the work dir, or user closes it
+        if proc.poll() is not None and proc.returncode != 0:
             raise RuntimeError(f"LichtFeld training failed (exit {proc.returncode})")
 
         # Find PLY output
-        # LichtFeld saves to output_dir/point_cloud/iteration_XXXXX/point_cloud.ply
-        # or directly as .ply files in the output directory
         ply = self._find_ply(result_dir)
+
+        # If no PLY yet, wait a bit longer (file might still be writing)
+        if not ply:
+            self._log("  Waiting for PLY output...")
+            for _ in range(10):
+                time.sleep(2)
+                ply = self._find_ply(result_dir)
+                if ply:
+                    break
+
+        if not ply:
+            # Last resort: kill viewer and check again
+            proc.terminate()
+            proc.wait(timeout=10)
+            ply = self._find_ply(result_dir)
+
         if not ply:
             raise RuntimeError("No PLY output from LichtFeld training")
 
